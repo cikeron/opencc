@@ -1,0 +1,368 @@
+<html> 
+  <head> 
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title> OpenCC v.0.9.b</title>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+<!--    <link rel="stylesheet" href="css/theme.min.css" />-->
+  <link rel="stylesheet" href="css/sidestylefull.css">   
+  <link rel="stylesheet" href="css/miestilo2.css">
+  <!--<link rel="stylesheet" href="css/sidereset.css"> CSS reset -->
+
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+    <link rel="stylesheet" href="leaflet-routing-machine/leaflet-routing-machine.css" />
+<!--    <link rel="stylesheet" href="lrmplugins/sidebarv2/css/leaflet-sidebar.css" />-->
+<!--    <link href="css/misideestilo.css" rel="stylesheet">-->
+
+<!--    <link rel="stylesheet" href="css/bootstrap.min.flatly.css" />
+<!--    <link rel="stylesheet" href="bootstrap335/css/bootstrap.min.css">-->
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+    <script src="leaflet-routing-machine/leaflet-routing-machine.js"></script>
+<!--    <script src="lrmplugins/sidebarv2/js/leaflet-sidebar.js"></script>-->
+
+    <script src="js/sentencias.js"></script>
+    <script src="js/olosmap.js"></script>
+    <script src="js/sparjs.js"></script>
+    <script src="js/mifunc.js"></script>
+    <script type="text/javascript">
+      $(document).ready(function() {
+        $('[data-toggle=offcanvas]').click(function() {
+          $('.row-offcanvas').toggleClass('active');
+        });
+          /** PARA EL POPUP **/
+          $('[data-toggle="popover"]').popover();  
+          //BARRA DE NAVEGACION MOVIL.
+          $('a[href="#navbar-more-show"], .navbar-more-overlay').on('click', function(event) {
+          event.preventDefault();
+          $('body').toggleClass('navbar-more-show');
+          if ($('body').hasClass('navbar-more-show')) {
+            $('a[href="#navbar-more-show"]').closest('li').addClass('active');
+          }else{
+            $('a[href="#navbar-more-show"]').closest('li').removeClass('active');
+          }
+          return false;
+        });     
+      });   
+//*****PARA ACCIONAR EL PRELOADER O SPLASH 
+window.onload=timeout;
+function timeout(){
+  window.setTimeout("redirect()",5000)
+}
+
+function redirect(){
+//  window.location="Inicio.htm";
+  $('#preloader').fadeOut('slow');
+  $('body').css({'overflow':'visible'});
+  return
+}
+
+      /******************* FILTROS PARA BUSCAR EN EL LISTADO DE RECURSOS*******************/
+      (function(){
+          'use strict';
+        var $ = jQuery;
+        $.fn.extend({
+          filterTable: function(){
+            return this.each(function(){
+              $(this).on('keyup', function(e){
+                $('.filterTable_no_results').remove();
+                var $this = $(this), 
+                              search = $this.val().toLowerCase(), 
+                              target = $this.attr('data-filters'), 
+                              $target = $(target), 
+                              $rows = $target.find('tbody tr');
+                              
+                if(search == '') {
+                  $rows.show(); 
+                } else {
+                  $rows.each(function(){
+                    var $this = $(this);
+                    $this.text().toLowerCase().indexOf(search) === -1 ? $this.hide() : $this.show();
+                  })
+                  if($target.find('tbody tr:visible').size() === 0) {
+                    var col_count = $target.find('tr').first().find('td').size();
+                    var no_results = $('<tr class="filterTable_no_results"><td colspan="'+col_count+'">No results found</td></tr>')
+                    $target.find('tbody').append(no_results);
+                  }
+                }
+              });
+            });
+          }
+        });
+        $('[data-action="filter"]').filterTable();
+      })(jQuery);
+
+      $(function(){
+          // attach table filter plugin to inputs
+        $('[data-action="filter"]').filterTable();
+        
+        $('.container').on('click', '.panel-heading span.filter', function(e){
+          var $this = $(this), 
+            $panel = $this.parents('.panel');
+          
+          $panel.find('.panel-body').slideToggle();
+          if($this.css('display') != 'none') {
+            $panel.find('.panel-body input').focus();
+          }
+        });
+        $('[data-toggle="tooltip"]').tooltip();
+      })
+      //**** PARA OBTENER LA GEOLOCALIZACION.
+      function geoerror(msg) {
+        $("#geoerrormodal").modal('show');
+      }
+
+
+      compruebaGPS(); 
+      //******** FIN GESTION DE GPS ************
+
+      /** Crea las opciones de los recursos que se pueden mostrar. Definido en sentencias.js
+          Se le pasa como parametro el tag id donde se ha de colocar el codigo html resultado.
+      **/
+      function irmascercatipo(deque) {
+        centrarenmapa(mlat,mlong,false,"");
+        setTimeout(trazaunaruta(mlat,mlong,0,0,true),3000); //NO FUNCIONA POR LA ASINCRONIA DE JAVASCRIPT!!!!!!
+        //Cerramos el panel de opciones.
+        $('.cd-panel').removeClass('is-visible');
+      }
+
+//Funcion que se encarga de mirar el array de sentencias sparQL predefinidas y ponerlas en un menu para acceder a ellas.
+      function crearopciones(idtag) {
+      //********* Para obtener que tipos de datos y sentencias tenemos preparadas y crear el menu de opciones.
+            var htmopciones='<div id="mioculto" class="mioculto" align="center"><a class="btn btn-info" href="#" onclick="irmascercatipo(0)"><i class="fa fa-location-arrow"></i> &nbsp Ruta al mas cercano</a></div><br><table class="table table-striped"><tbody>';
+            for (i=0;i<arraytipoInfo.length;i++){ 
+                //console.log(arraytipoInfo[i][1]);
+                htmopciones+='<tr><td  style="width:60%;">';
+                htmopciones += '<a onclick="solomostrar(\'mioculto\');exesparQR(arraytipoInfo['+i+'][2],arraytipoInfo['+i+'][3],arraytipoInfo['+i+'][4],arraytipoInfo['+i+'][0])" data-dismiss="modal"><i class="fa fa-map-marker"></i> '+arraytipoInfo[i][1]+'</a></td>'+
+                '<td style="width:40%;"><a onclick="solomostrar(\'mioculto\');centrarenmapa(mlat,mlong,false,null);exesparQR(arraytipoInfo['+i+'][2],2,arraytipoInfo['+i+'][4],arraytipoInfo['+i+'][0])" data-dismiss="modal"><i class="fa fa-plus-circle"></i> Cercano</a></td>'+
+                '</tr>';
+            } 
+            htmopciones+="</tbody></table><hr>";
+            document.getElementById(idtag).innerHTML = htmopciones;
+            //return htmopciones;
+      }
+      /** Rellena un modal bootstrap con la informacion que se le pasa como parametros.**/
+      function rellenainfomodal(titulo,cuerpo,pie) {
+            document.getElementById('tituloinfomodal').innerHTML = titulo;
+            document.getElementById('cuerpoinfomodal').innerHTML = cuerpo;
+            document.getElementById('pieinfomodal').innerHTML = pie;
+      }
+      function openccinfo(){
+        var cuerpohtm='<p>Esta aplicación web, sirve para mostrar diferentes tipos de información, basados en consultas de la magnífica labor y trabajo realizado en la web de opendata de Cáceres. <a href="http://http://opendata.caceres.es/">http://http://opendata.caceres.es/</a></p>'+
+        '<p>La función de GPS o geolocalización, depende su buen funcionamiento, de si esta activado el GPS en el terminal móvil y si se permite el acceso a esta información. Normalmente tarda un poco desde que se carga esta webapp, hasta que se detecta la posición. Se ha comprobado que en el navegador Firefox tarda algo mas en posicionar.</p>';
+        var piehtm="";
+        rellenainfomodal('Informacion de OpenCC',cuerpohtm,piehtm);
+      }
+    </script>
+  </head>
+
+  <body onload="timeout()">
+<div id="preloader">
+      <div class="txtloader"><h2>openCC</h2>
+      </div>
+      <div class="txtloader">by Ck. NexumTek.
+      </div>
+      <div id="cmd">
+      </div>
+    <div id="loader">
+    </div>
+</div>
+
+<!--****BOTON FLOTANTE*************-->
+  <a href="#cd-nav" class="cd-nav-trigger">Menu 
+    <span class="cd-nav-icon"></span>
+
+    <svg x="0px" y="0px" width="54px" height="54px" viewBox="0 0 54 54">
+      <circle fill="transparent" stroke="#656e79" stroke-width="1" cx="27" cy="27" r="25" stroke-dasharray="157 157" stroke-dashoffset="157"></circle>
+    </svg>
+  </a>
+
+  <div id="map2" style="width: 100%; height: 100%" class="mimap2">
+    <script type="text/javascript">
+    //crearopciones("dropmenu");
+    //crearopciones("oplateral");
+    initMap(39.471614,-6.377033);
+    </script>
+  </div><!-- id map2-->
+
+  <!--<div class="navbar-more-overlay"></div>-->
+
+  <div class="cd-panel from-right">
+    <header class="cd-panel-header">
+      <h3><a href="" onclick="window.location.reload();"><i class="fa fa-refresh"></i> </a> &nbsp openCC</h3>
+      <a href="#0" class="cd-panel-close">Cerrar</a>
+    </header>
+
+    <div class="cd-panel-container">
+      <div class="cd-panel-content">
+
+      <div class="tabs-left">
+        <ul class="nav leftnav-tabs">
+          <li class="active"><a href="#busqueda" data-toggle="tab"><span class="fa fa-search"></span></a></li>
+          <li><a href="#c" data-toggle="tab"><span class="fa fa-database"></span></a></li>
+          <li><a href="#d" data-toggle="tab"><span class="glyphicon glyphicon-globe"></span></a></li>
+          <li><a href="#info" data-toggle="tab"><span class="fa fa-info-circle"></span></a></li>
+          <li><a href="#ayuda" data-toggle="tab"><span class="fa fa-question"></span></a></li>
+          <li><a href="#configpanel" data-toggle="tab"><span class="glyphicon glyphicon-cog"></span></a></li>
+        </ul>
+        <div class="tab-content">
+          <div class="tab-pane active" id="busqueda">
+            <h3>Buscar openData...</h3>
+<!--            <ul class="list-group pull-left">
+              <li class="list-group-item">
+                <h4>Crystals &nbsp; &nbsp;<span class="badge pull-right">100%</span></h4>
+              </li>
+              <li class="list-group-item">
+                <h4>Healing &nbsp; &nbsp;<span class="badge pull-right">90%</span></h4>
+              </li>
+              <li class="list-group-item">
+                <h4>Exploring &nbsp; &nbsp;<span class="badge pull-right">78%</span></h4>
+              </li>
+              <li class="list-group-item">
+                <h4>QiGong &nbsp; &nbsp;<span class="badge pull-right">83%</span></h4>
+              </li>
+              <li class="list-group-item">
+                <h4>Myself &nbsp; &nbsp;<span class="badge pull-right">100%</span>
+                </h4></li>
+            </ul>
+-->
+              <div id="tiposopmodal">
+              <!-- Aqui todos los recursos disponibles para buscar -->  
+              </div>
+
+              <div class="panel-group" id="accordion">
+                  <div class="panel panel-default">
+                      <div class="panel-heading">
+                          <h4 class="panel-title">
+                              <a data-toggle="collapse" data-parent="#accordion" href="#collapseOne"><span class="fa fa-question"></span> Ayuda</a>
+                          </h4>
+                      </div>
+                      <div id="collapseOne" class="panel-collapse collapse">
+                          <div class="panel-body">
+                              Puedes buscar todos los elementos disponibles. O basándote en tu geolocalización, los más próximos dentro de un radio de 500 metros.<br>El listado de elementos se lista en la siguiente opción de este panel y se posicionan si es posible en el mapa.
+                          </div>
+                      </div>
+                  </div>
+              </div>              
+
+          </div>
+          <div class="tab-pane" id="info">
+            <h3>Información</h3>
+            <p>Esta aplicación web, sirve para mostrar diferentes tipos de información, basados en consultas de la magnífica labor y trabajo realizado en la web de opendata de Cáceres. <a href="http://http://opendata.caceres.es/">http://http://opendata.caceres.es/</a>. Cuyos dataset se publican bajo la licencia Creative Commons Reconocimiento (CC by 3.0)</p>
+            <p>La función de GPS o geolocalización, depende su buen funcionamiento, de si esta activado el GPS en el terminal móvil y si se permite el acceso a esta información. Normalmente tarda un poco desde que se carga esta webapp, hasta que se detecta la posición. Se ha comprobado que en el navegador Firefox tarda algo mas en posicionar.</p>
+            <p>Se utilizan para la visualización de mapas la librerías Leaflet sobre Open Street Map OSM. Además de para vbisualizar rutas simples el plugin de Leaflet, Leaflet Routing Machine, respetando sus respectivas licencias.</p>          
+            
+              
+          </div>
+          <div class="tab-pane" id="c">
+          <h3>Resultados de la búsqueda...</h3>
+          <div align="center"><input type="text" id="dev-table-filter" data-action="filter" data-filters="#tabladatos" data-toggle="popover" data-placement="bottom" data-trigger="focus" title="Recuerda..." data-content="Primero para buscar tienes que seleccionar algún tipo de dato." placeholder="Buscar o filtrar" > </div>
+            <div id="results"></div>
+          </div>
+          <div class="tab-pane" id="d">
+          <h3>GPS y geolocalización.</h3>
+            <div id="geolocali" style="padding-left:5px">
+            </div>
+            <div align="center">
+              <a class="btn btn-success mibtnflat" href="#" onclick="centrarenmapa(mlat,mlong,false,null)" data-dismiss="modal"><i class="fa fa-map-marker"></i> Ver en MAPA</a>
+              <br><br>
+              <a class="btn btn-info mibtnflat" href="#" onclick="trazaunaruta(mlat,mlong,0,0,true)" data-dismiss="modal"><i class="fa fa-map-marker"></i> Ruta al mas cercano</a>
+              <hr>
+            </div>            
+              <div class="panel-group" id="accordion">
+                  <div class="panel panel-default">
+                      <div class="panel-heading">
+                          <h4 class="panel-title">
+                              <a data-toggle="collapse" data-parent="#accordion" href="#ayudaGPS"><span class="fa fa-question"></span> Ayuda</a>
+                          </h4>
+                      </div>
+                      <div id="ayudaGPS" class="panel-collapse collapse">
+                          <div class="panel-body">
+                              <p>La función de GPS o geolocalización, depende su buen funcionamiento, de si esta activado el GPS en el terminal móvil y si se permite el acceso a esta información. Normalmente tarda un poco desde que se carga esta webapp, hasta que se detecta la posición. Se ha comprobado que en el navegador Firefox tarda algo mas en posicionar.</p>
+                              <p>En caso de acceder a una posición de geolocalización esta se guarda en una variable local del navegador, la cual puede ser borrada al borrar la cache del navegador.</p>
+                          </div>
+                      </div>
+                  </div>
+              </div> 
+          </div>
+
+          <div class="tab-pane" id="ayuda">
+          <h3>Ayuda</h3>
+              <div class="panel-group" id="accordion">
+
+                  <div class="panel panel-default">
+                      <div class="panel-heading">
+                          <h4 class="panel-title">
+                              <a data-toggle="collapse" data-parent="#accordion" href="#aydinicio"><span class="fa fa-question"></span> OpenCC</a>
+                          </h4>
+                      </div>
+                      <div id="aydinicio" class="panel-collapse collapse">
+                          <div class="panel-body">
+            <p>Esta aplicación web, sirve para mostrar diferentes tipos de información, basados en consultas de la magnífica labor y trabajo realizado en la web de opendata de Cáceres. <a href="http://http://opendata.caceres.es/">http://http://opendata.caceres.es/</a></p>
+            <p>La función de GPS o geolocalización, depende su buen funcionamiento, de si esta activado el GPS en el terminal móvil y si se permite el acceso a esta información. Normalmente tarda un poco desde que se carga esta webapp, hasta que se detecta la posición. Se ha comprobado que en el navegador Firefox tarda algo mas en posicionar.</p>
+            <p>Se utilizan para la visualización de mapas la librerías Leaflet sobre Open Street Map OSM. Además de para vbisualizar rutas simples el plugin de Leaflet, Leaflet Routing Machine, respetando sus respectivas licencias.</p>
+                          </div>
+                      </div>
+                  </div>
+                  <div class="panel panel-default">
+                      <div class="panel-heading">
+                          <h4 class="panel-title">
+                              <a data-toggle="collapse" data-parent="#accordion" href="#ayuda1"><span class="fa fa-question"></span> Ayuda GPS</a>
+                          </h4>
+                      </div>
+                      <div id="ayuda1" class="panel-collapse collapse">
+                          <div class="panel-body">
+                              <p>La función de GPS o geolocalización, depende su buen funcionamiento, de si esta activado el GPS en el terminal móvil y si se permite el acceso a esta información. Normalmente tarda un poco desde que se carga esta webapp, hasta que se detecta la posición. Se ha comprobado que en el navegador Firefox tarda algo mas en posicionar.</p>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="panel panel-default">
+                      <div class="panel-heading">
+                          <h4 class="panel-title">
+                              <a data-toggle="collapse" data-parent="#accordion" href="#aydGPS"><span class="fa fa-question"></span> Ayuda búsquedas</a>
+                          </h4>
+                      </div>
+                      <div id="aydGPS" class="panel-collapse collapse">
+                          <div class="panel-body">
+                              Puedes buscar todos los elementos disponibles. O basándote en tu geolocalización, los más próximos dentro de un radio de 500 metros.<br>El listado de elementos se lista en la siguiente opción de este panel y se posicionan si es posible en el mapa.
+                          </div>
+                      </div>
+                  </div>
+              </div>
+       
+
+          </div>
+          <div class="tab-pane" id="configpanel">
+          <h3>Configuración...</h3>
+          <p>Por implementar.... ;-P </p>
+          </div>
+
+        </div><!-- /tab-content -->
+      </div><!-- /tabbable -->
+
+
+      </div> <!-- cd-panel-content -->
+    </div> <!-- cd-panel-container -->
+  </div> <!-- cd-panel -->
+      
+<script src="js/sidepanelmain.js"></script> <!-- Resource jQuery -->
+<script>
+/*$(window).load(function() {
+  $('#preloader').fadeOut('slow');
+  $('body').css({'overflow':'visible'});
+})
+*/
+    cmd.append(cursor);
+    type('#cmd',greeting,0);
+  crearopciones("tiposopmodal");
+  rastreaPosicion("actlat","actlong");
+  mostrarinfoGPSsimple(mlat,mlong,"geolocali");
+</script>
+  </body>
+</html>
